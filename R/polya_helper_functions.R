@@ -24,3 +24,102 @@ gm_mean = function(x, na.rm=TRUE){
   return(gm_mean)
 }
 
+
+
+#' Subsample a date frame
+#'
+#' Uses base subsetting and \link{sample} or dplyr \link[dplyr]{sample_n} or \link[dplyr{sample_frac}] to get the subset of the bigger data.frame or tibble
+#'
+#' @param input_table input table for subsampling
+#' @param groupingFactor grouping factor(s)
+#' @param subsample specify absolute number of rows or fraction to subsample from the data frame (group-wise)
+#'
+#' @return \link{tibble}
+#' @export
+#'
+subsample_table <- function(input_table,groupingFactor=NA,subsample=NA)
+{
+  if (missing(input_table)) {
+    stop("PolyA predictions are missing. Please provide a valid polya_data argument",
+         call. = FALSE)
+  }
+
+  #assertthat::assert_that(is.numeric(reads_to_subsample),"Non-numeric argument for reads_to_subsample")
+
+  assertthat::assert_that(!is.na(subsample),msg = "Please provide subsample option as an integer or fraction")
+
+  if (isTRUE(round(subsample)==subsample)) {
+    subsample_number = TRUE
+  }
+  else {
+    subsample_number = FALSE
+  }
+
+  #if set to 0 - do not subsample - return input table))
+  if (subsample==0) {
+    return(input_table)
+  }
+  else {
+    if(!is.na(groupingFactor)) {
+      # group, if required
+      assertthat::assert_that(groupingFactor %in% colnames(input_table),msg=paste0(groupingFactor," is not a column of input dataset"))
+      input_table <- input_table %>% group_by(.dots = groupingFactor)
+      if (subsample_number) {
+        input_table <- dplyr::sample_n(input_table,subsample)
+      }
+      else {
+        input_table <- dplyr::sample_frac(input_table,subsample)
+      }
+    }
+    else {
+      if (any(class(polya_test_lymph2)=="grouped_df")) {
+        grouping_var = dplyr::group_vars(input_table)
+        #input_table %>% ungroup(input_table)
+      }
+      if (subsample_number) {
+        input_table <- input_table[sample(nrow(input_table),subsample),]
+      }
+      else {
+        input_table <- dplyr::sample_frac(input_table,subsample)
+      }
+    }
+
+    return(input_table)
+  }
+}
+
+
+
+
+#' Default theme for ggplot2-based plots in the NanoTail package
+#'
+axis_elements_size=15
+axis_titles_size=18
+nanotail_ggplot2_theme <- ggplot2::theme(axis.title = ggplot2::element_text(size=axis_titles_size),axis.text = ggplot2::element_text(size=axis_elements_size),legend.text = ggplot2::element_text(size=axis_elements_size),legend.title = ggplot2::element_text(size=axis_titles_size))
+
+
+
+
+# based on https://community.rstudio.com/t/spread-with-multiple-value-columns/5378/2
+#' Spread multiple columns
+#'
+#' @param df data frame to apply spread on
+#' @param key as in \link{spread}
+#' @param value vector of columns to be taken as value for \link{spread}
+#'
+#' @return \link{tibble}
+#' @export
+#'
+spread_multiple <- function(df, key, value) {
+  # quote key
+  keyq <- rlang::enquo(key)
+  # break value vector into quotes
+  valueq <- rlang::enquo(value)
+  s <- rlang::quos(!!valueq)
+  df %>% tidyr::gather(variable, value, !!!s) %>%
+    tidyr::unite(temp, !!keyq, variable) %>%
+    tidyr::spread(temp, value)
+}
+
+
+
